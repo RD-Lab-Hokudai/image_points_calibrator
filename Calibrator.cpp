@@ -111,6 +111,7 @@ int main(int argc, char *argv[])
     }
 
     // Load image and pcd
+    // FIX: fetch all files
     vector<int> data_ids{350};
     bool size_is_initialized = false;
     for (int i = 0; i < data_ids.size(); i++)

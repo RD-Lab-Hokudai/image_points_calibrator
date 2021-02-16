@@ -5,7 +5,7 @@
 
 ## How to use
 
-1. Make data folder
+### 1. Make data folder
 
 - Format
 
@@ -22,7 +22,7 @@ You should specify thie image and point cloud data from the same frame for xxx.p
 
 PNG images are only supported.
 
-2. Build this project
+### 2. Build this project
 
 In this project,
 
@@ -32,7 +32,7 @@ $ cd build
 $ make
 ```
 
-3. Run
+### 3. Run
 
 ```
 $ ./Calibrator <folder_path>
