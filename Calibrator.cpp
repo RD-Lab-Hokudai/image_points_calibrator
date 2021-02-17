@@ -1,9 +1,13 @@
 #include <stdio.h>
+#include <set>
+#include <iostream>
+#include <regex>
 
 #include <Open3D/Open3D.h>
 #include <opencv2/opencv.hpp>
 #include <Eigen/Core>
 #include <eigen3/unsupported/Eigen/NonLinearOptimization>
+#include <dirent.h>
 
 using namespace std;
 
@@ -23,7 +27,7 @@ int roll = 500;
 int pitch = 500;
 int yaw = 500;
 
-int dataNo = 0;
+int data_no = 0;
 
 void reproject()
 {
@@ -31,7 +35,7 @@ void reproject()
     {
         for (int j = 0; j < width; j++)
         {
-            reprojected.at<cv::Vec3b>(i, j) = imgs[dataNo].at<cv::Vec3b>(i, j);
+            reprojected.at<cv::Vec3b>(i, j) = imgs[data_no].at<cv::Vec3b>(i, j);
         }
     }
 
@@ -43,11 +47,11 @@ void reproject()
         sin(yawVal) * cos(pitchVal), sin(yawVal) * sin(pitchVal) * sin(rollVal) + cos(yawVal) * cos(rollVal), sin(yawVal) * sin(pitchVal) * cos(rollVal) - cos(yawVal) * sin(rollVal), (Y - 500) / 100.0,
         -sin(pitchVal), cos(pitchVal) * sin(rollVal), cos(pitchVal) * cos(rollVal), (Z - 500) / 100.0,
         0, 0, 0, 1;
-    for (int i = 0; i < pcd_ptrs[dataNo]->points_.size(); i++)
+    for (int i = 0; i < pcd_ptrs[data_no]->points_.size(); i++)
     {
-        double rawX = pcd_ptrs[dataNo]->points_[i][0];
-        double rawY = pcd_ptrs[dataNo]->points_[i][1];
-        double rawZ = pcd_ptrs[dataNo]->points_[i][2];
+        double rawX = pcd_ptrs[data_no]->points_[i][0];
+        double rawY = pcd_ptrs[data_no]->points_[i][1];
+        double rawZ = pcd_ptrs[data_no]->points_[i][2];
 
         double r = sqrt(rawX * rawX + rawZ * rawZ);
         double x = calibration_mtx(0, 0) * rawX + calibration_mtx(0, 1) * rawY + calibration_mtx(0, 2) * rawZ + calibration_mtx(0, 3);
@@ -68,6 +72,11 @@ void reproject()
     cv::imshow("Image", reprojected);
 }
 
+void on_trackbarDataNo(int val, void *object)
+{
+    data_no = min(val, (int)imgs.size() - 1);
+    reproject();
+}
 void on_trackbarX(int val, void *object)
 {
     X = val;
@@ -101,27 +110,48 @@ void on_trackbarYaw(int val, void *object)
 
 int main(int argc, char *argv[])
 {
-    string data_folder_path;
-    try
+    if (argc <= 1)
     {
-        data_folder_path = argv[1];
-    }
-    catch (exception &e)
-    {
+        cout << "Data folder is not specified!" << endl;
+        return 1;
     }
 
-    // Load image and pcd
-    // FIX: fetch all files
-    vector<int> data_ids{350};
+    string data_folder_path = argv[1];
+    DIR *dir;
+    struct dirent *diread;
+    set<string> file_names;
+    if ((dir = opendir(data_folder_path.c_str())) != nullptr)
+    {
+        while ((diread = readdir(dir)) != nullptr)
+        {
+            file_names.insert(diread->d_name);
+        }
+        closedir(dir);
+    }
+    else
+    {
+        cout << "Invalid folder path!" << endl;
+        return 1;
+    }
+
     bool size_is_initialized = false;
-    for (int i = 0; i < data_ids.size(); i++)
+    // Load image and pcd
+    for (auto it = file_names.begin(); it != file_names.end(); it++)
     {
         try
         {
-            string img_path = data_folder_path + to_string(data_ids[i]) + ".png";
+            string str = *it;
+            size_t found = str.find(".png");
+            if (found == string::npos)
+            {
+                throw 1;
+            }
+
+            string name = str.substr(0, found);
+            string img_path = data_folder_path + name + ".png";
             cv::Mat img = cv::imread(img_path);
 
-            string pcd_path = data_folder_path + to_string(data_ids[i]) + ".pcd";
+            string pcd_path = data_folder_path + name + ".pcd";
             open3d::geometry::PointCloud pointcloud;
             auto pcd_ptr = make_shared<open3d::geometry::PointCloud>();
             if (!open3d::io::ReadPointCloud(pcd_path, pointcloud))
@@ -148,12 +178,18 @@ int main(int argc, char *argv[])
             f_y = f_x;
             size_is_initialized = true;
         }
-        catch (exception &e)
+        catch (int e)
         {
         }
     }
+    if (imgs.size() == 0)
+    {
+        cout << "No data is found" << endl;
+        return 1;
+    }
 
     cv::namedWindow("Image", cv::WINDOW_AUTOSIZE);
+    cv::createTrackbar("Data No", "Image", &data_no, imgs.size(), &on_trackbarDataNo);
     cv::createTrackbar("X(-5,5)", "Image", &X, 1000, &on_trackbarX);
     cv::createTrackbar("Y(-5,5)", "Image", &Y, 1000, &on_trackbarY);
     cv::createTrackbar("Z(-5,5)", "Image", &Z, 1000, &on_trackbarZ);
