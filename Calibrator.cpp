@@ -3,10 +3,9 @@
 #include <iostream>
 #include <regex>
 
-#include <Open3D/Open3D.h>
+#include <pcl/point_cloud.h>
+#include <pcl/io/pcd_io.h>
 #include <opencv2/opencv.hpp>
-#include <Eigen/Core>
-#include <eigen3/unsupported/Eigen/NonLinearOptimization>
 #include <dirent.h>
 
 using namespace std;
@@ -17,7 +16,7 @@ double f_x;
 double f_y;
 
 vector<cv::Mat> imgs;
-vector<shared_ptr<open3d::geometry::PointCloud> > pcd_ptrs;
+vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> pcd_ptrs;
 cv::Mat reprojected;
 
 int X = 500;
@@ -47,11 +46,11 @@ void reproject()
         sin(yawVal) * cos(pitchVal), sin(yawVal) * sin(pitchVal) * sin(rollVal) + cos(yawVal) * cos(rollVal), sin(yawVal) * sin(pitchVal) * cos(rollVal) - cos(yawVal) * sin(rollVal), (Y - 500) / 100.0,
         -sin(pitchVal), cos(pitchVal) * sin(rollVal), cos(pitchVal) * cos(rollVal), (Z - 500) / 100.0,
         0, 0, 0, 1;
-    for (int i = 0; i < pcd_ptrs[data_no]->points_.size(); i++)
+    for (int i = 0; i < pcd_ptrs[data_no]->points.size(); i++)
     {
-        double rawX = pcd_ptrs[data_no]->points_[i][0];
-        double rawY = pcd_ptrs[data_no]->points_[i][1];
-        double rawZ = pcd_ptrs[data_no]->points_[i][2];
+        double rawX = pcd_ptrs[data_no]->points[i].x;
+        double rawY = pcd_ptrs[data_no]->points[i].y;
+        double rawZ = pcd_ptrs[data_no]->points[i].z;
 
         double r = sqrt(rawX * rawX + rawZ * rawZ);
         double x = calibration_mtx(0, 0) * rawX + calibration_mtx(0, 1) * rawY + calibration_mtx(0, 2) * rawZ + calibration_mtx(0, 3);
@@ -152,25 +151,26 @@ int main(int argc, char *argv[])
             cv::Mat img = cv::imread(img_path);
 
             string pcd_path = data_folder_path + name + ".pcd";
-            open3d::geometry::PointCloud pointcloud;
-            auto pcd_ptr = make_shared<open3d::geometry::PointCloud>();
-            if (!open3d::io::ReadPointCloud(pcd_path, pointcloud))
+            pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
+            if (pcl::io::loadPCDFile<pcl::PointXYZ>(pcd_path, *cloud) == -1)
             {
                 throw 1;
             }
 
-            for (int i = 0; i < pointcloud.points_.size(); i++)
+            for (int i = 0; i < cloud->points.size(); i++)
             {
                 // Assign position for camera coordinates
-                double x = pointcloud.points_[i][1];
-                double y = -pointcloud.points_[i][2];
-                double z = -pointcloud.points_[i][0];
+                double x = cloud->points[i].y;
+                double y = -cloud->points[i].z;
+                double z = -cloud->points[i].x;
 
-                pcd_ptr->points_.emplace_back(x, y, z);
+                cloud->points[i].x = x;
+                cloud->points[i].y = y;
+                cloud->points[i].z = z;
             }
 
             imgs.emplace_back(img);
-            pcd_ptrs.emplace_back(pcd_ptr);
+            pcd_ptrs.emplace_back(cloud);
 
             height = img.rows;
             width = img.cols;
