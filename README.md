@@ -1,6 +1,6 @@
 ## Requirements
 
-- Open3D 0.10.0.0
+- PCL 1.8
 - OpenCV 3.4.2
 
 ## How to use

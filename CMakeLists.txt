@@ -4,7 +4,7 @@ set (CMAKE_CXX_STANDARD 14)
 project(Image_Points_Calibrator)
 
 find_package(OpenCV REQUIRED)
-find_package(PCL 1.8 REQUIRED)
+find_package(PCL REQUIRED)
 
 if(PCL_FOUND)
     # link_directories must be before add_executable
