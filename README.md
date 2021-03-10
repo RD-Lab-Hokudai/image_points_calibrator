@@ -29,10 +29,13 @@ In this project,
 ```
 $ mkdir build
 $ cd build
+$ cmake ..
 $ make
 ```
 
 ### 3. Run
+
+In build folder,
 
 ```
 $ ./Calibrator <folder_path>
